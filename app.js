@@ -2,7 +2,7 @@ let kanban;
 let modal;
 
 document.addEventListener('DOMContentLoaded', () => {
-    kanban = new Kanban('modulesContainer');
+    kanban = new Kanban('boardContainer');
     modal = new Modal();
 
     document.addEventListener('refreshKanban', () => {
