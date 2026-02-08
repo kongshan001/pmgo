@@ -197,6 +197,7 @@ class Modal {
     renderModuleList() {
         const container = document.getElementById('modulesList');
         const modules = moduleStorage.getAll().sort((a, b) => a.order - b.order);
+        console.log('[renderModuleList] 模块列表:', modules);
         
         container.innerHTML = modules.map(m => `
             <div class="module-item" data-module-id="${m.id}">
@@ -240,13 +241,19 @@ class Modal {
         const input = document.getElementById('newModuleName');
         const name = input.value.trim();
         
+        console.log('[addNewModule] 尝试添加模块:', name);
+        
         if (!name) {
             alert('请输入模块名称');
             return;
         }
 
         const module = new Module({ name });
-        moduleStorage.add(module.toJSON());
+        console.log('[addNewModule] 创建的模块对象:', module.toJSON());
+        
+        const result = moduleStorage.add(module.toJSON());
+        console.log('[addNewModule] 保存结果:', result);
+        
         input.value = '';
         this.renderModuleList();
         this.refreshKanban();

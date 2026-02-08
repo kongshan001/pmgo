@@ -81,9 +81,12 @@ class ModuleStorage {
     }
 
     add(module) {
+        console.log('[moduleStorage.add] 添加模块:', module);
         const modules = this.getAll();
+        console.log('[moduleStorage.add] 现有模块数量:', modules.length);
         module.order = modules.length;
         modules.push(module);
+        console.log('[moduleStorage.add] 添加后模块数量:', modules.length);
         return this.save(modules);
     }
 

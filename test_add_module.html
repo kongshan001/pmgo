@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>测试添加模块</title>
+    <style>
+        body { padding: 20px; font-family: sans-serif; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        input { padding: 8px; margin-right: 10px; }
+        button { padding: 8px 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>添加模块测试</h1>
+    
+    <div class="debug">
+        <h3>1. 输入新模块</h3>
+        <input type="text" id="moduleName" placeholder="模块名称">
+        <button onclick="addModule()">添加</button>
+    </div>
+    
+    <div class="debug">
+        <h3>2. 当前模块列表</h3>
+        <pre id="moduleList">加载中...</pre>
+    </div>
+    
+    <div class="debug">
+        <h3>3. 控制台日志</h3>
+        <pre id="consoleLog" style="max-height: 200px; overflow: auto;"></pre>
+    </div>
+
+    <script src="module.js"></script>
+    <script>
+        function log(msg) {
+            const el = document.getElementById('consoleLog');
+            el.textContent += new Date().toLocaleTimeString() + ': ' + msg + '\n';
+            console.log(msg);
+        }
+        
+        function refreshList() {
+            const modules = moduleStorage.getAll();
+            const list = document.getElementById('moduleList');
+            list.textContent = JSON.stringify(modules, null, 2);
+            log('当前模块数量: ' + modules.length);
+        }
+        
+        function addModule() {
+            const input = document.getElementById('moduleName');
+            const name = input.value.trim();
+            
+            log('尝试添加模块: ' + name);
+            
+            if (!name) {
+                log('错误: 模块名称为空');
+                alert('请输入模块名称');
+                return;
+            }
+            
+            try {
+                // 创建模块对象
+                const module = new Module({ name });
+                log('创建模块对象: ' + JSON.stringify(module.toJSON()));
+                
+                // 添加到存储
+                const result = moduleStorage.add(module.toJSON());
+                log('添加结果: ' + (result ? '成功' : '失败'));
+                
+                if (result) {
+                    input.value = '';
+                    refreshList();
+                } else {
+                    log('添加失败');
+                    alert('添加失败');
+                }
+            } catch (e) {
+                log('错误: ' + e.message);
+                console.error(e);
+            }
+        }
+        
+        // 初始化
+        log('初始化...');
+        moduleStorage.initDefault();
+        refreshList();
+        log('初始化完成');
+    </script>
+</body>
+</html>
