@@ -34,7 +34,6 @@ class Modal {
 
         // Module modal events
         document.getElementById('manageModulesBtn').addEventListener('click', () => this.openModuleModal());
-        document.getElementById('addModuleBtn').addEventListener('click', () => this.openModuleModal());
         document.getElementById('moduleModalClose').addEventListener('click', () => this.closeModuleModal());
         document.getElementById('confirmAddModule').addEventListener('click', () => this.addNewModule());
         
