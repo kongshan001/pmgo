@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>控制台检查</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .section { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .status { padding: 5px 10px; border-radius: 4px; display: inline-block; margin-right: 10px; }
+        .ok { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>检查控制台</h1>
+    
+    <div class="section">
+        <h3>1. 检查元素是否存在</h3>
+        <div id="elements"></div>
+    </div>
+    
+    <div class="section">
+        <h3>2. 测试添加模块</h3>
+        <input type="text" id="testModuleName" value="测试模块123">
+        <button onclick="testAdd()">测试添加</button>
+        <button onclick="testDirectAdd()">直接调用addNewModule</button>
+        <div id="testResult"></div>
+    </div>
+    
+    <div class="section">
+        <h3>3. 当前localStorage数据</h3>
+        <button onclick="showStorage()">显示存储</button>
+        <button onclick="clearStorage()">清除存储</button>
+        <pre id="storageData"></pre>
+    </div>
+    
+    <div class="section">
+        <h3>4. 打开模块管理弹窗</h3>
+        <button onclick="document.getElementById('moduleModalOverlay').classList.add('active')">打开</button>
+        <button onclick="document.getElementById('moduleModalOverlay').classList.remove('active')">关闭</button>
+    </div>
+
+    <!-- 复制modal.js中的代码用于测试 -->
+    <script src="module.js"></script>
+    <script>
+        // 检查元素
+        const elements = document.getElementById('elements');
+        const requiredIds = [
+            'taskModalOverlay',
+            'moduleModalOverlay',
+            'taskForm',
+            'addTaskBtn',
+            'manageModulesBtn',
+            'modulesList',
+            'newModuleName',
+            'confirmAddModule',
+            'moduleModalClose'
+        ];
+        
+        requiredIds.forEach(id => {
+            const el = document.getElementById(id);
+            const status = el ? '<span class="status ok">存在</span>' : '<span class="status error">不存在</span>';
+            elements.innerHTML += `<div>${status} ${id}</div>`;
+        });
+        
+        // 测试添加
+        function testAdd() {
+            const resultDiv = document.getElementById('testResult');
+            const name = document.getElementById('testModuleName').value;
+            
+            try {
+                // 模拟modal.addNewModule的代码
+                const module = new Module({ name });
+                console.log('创建模块:', module.toJSON());
+                
+                const result = moduleStorage.add(module.toJSON());
+                console.log('添加结果:', result);
+                
+                if (result) {
+                    resultDiv.innerHTML = '<span class="status ok">添加成功</span>';
+                    showStorage();
+                } else {
+                    resultDiv.innerHTML = '<span class="status error">添加失败</span>';
+                }
+            } catch(e) {
+                resultDiv.innerHTML = '<span class="status error">错误: ' + e.message + '</span>';
+                console.error(e);
+            }
+        }
+        
+        function testDirectAdd() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = '<span>尝试直接调用方法...</span>';
+            
+            // 直接调用
+            document.getElementById('newModuleName').value = document.getElementById('testModuleName').value;
+            const btn = document.getElementById('confirmAddModule');
+            
+            console.log('按钮元素:', btn);
+            console.log('按钮是否有click事件:', btn.onclick !== null);
+            
+            // 触发点击
+            btn.click();
+        }
+        
+        function showStorage() {
+            const data = localStorage.getItem('task_manager_modules');
+            document.getElementById('storageData').textContent = data || '(空)';
+            console.log('Storage数据:', data);
+        }
+        
+        function clearStorage() {
+            localStorage.removeItem('task_manager_modules');
+            showStorage();
+        }
+        
+        // 初始化默认模块
+        console.log('初始化模块存储...');
+        moduleStorage.initDefault();
+        showStorage();
+    </script>
+    
+    <!-- 复制弹窗HTML用于测试 -->
+    <div class="modal-overlay" id="moduleModalOverlay">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2>模块管理</h2>
+                <button id="moduleModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modulesList"></div>
+                <div>
+                    <input type="text" id="newModuleName" placeholder="新模块名称">
+                    <button id="confirmAddModule" class="btn-primary">添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试按钮</title>
+</head>
+<body>
+    <h3>测试按钮点击事件</h3>
+    <input type="text" id="nameInput" value="测试">
+    <button id="addBtn">添加</button>
+    <div id="output"></div>
+    
+    <script>
+        const btn = document.getElementById('addBtn');
+        const output = document.getElementById('output');
+        
+        console.log('按钮元素:', btn);
+        console.log('按钮类型:', btn.type);
+        console.log('按钮form:', btn.form);
+        
+        btn.addEventListener('click', function(e) {
+            console.log('点击事件触发!');
+            console.log('事件对象:', e);
+            console.log('this:', this);
+            output.innerHTML += '<p>点击: ' + new Date().toLocaleTimeString() + '</p>';
+        });
+        
+        // 检查是否有其他监听器
+        const clone = btn.cloneNode(true);
+        btn.parentNode.replaceChild(clone, btn);
+        console.log('替换后的按钮:', clone);
+    </script>
+</body>
+</html>

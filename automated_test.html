@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动化测试 - 模块添加</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .test { background: #2d2d2d; padding: 15px; margin: 10px 0; border-left: 4px solid #4ec9b0; }
+        .pass { border-color: #4ec9b0; }
+        .fail { border-color: #f14c4c; }
+        .error { border-color: #cca700; }
+        h2 { margin-top: 0; }
+        button { background: #0e639c; color: white; border: none; padding: 10px 20px; cursor: pointer; margin: 10px 0; }
+        button:hover { background: #1177bb; }
+        #log { white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <h1>模块添加功能自动化测试</h1>
+    <button onclick="runAllTests()">运行所有测试</button>
+    <div id="results"></div>
+    <h2>详细日志</h2>
+    <pre id="log"></pre>
+
+    <script src="module.js"></script>
+    <script>
+        const results = document.getElementById('results');
+        const logDiv = document.getElementById('log');
+        
+        function log(msg) {
+            const time = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${time}] ${msg}\n`;
+            console.log(msg);
+        }
+        
+        function addTest(name, passed, details = '') {
+            const className = passed ? 'pass' : 'fail';
+            results.innerHTML += `<div class="test ${className}"><strong>${passed ? '✓' : '✗'} ${name}</strong><br>${details}</div>`;
+            log(`${passed ? 'PASS' : 'FAIL'}: ${name} - ${details}`);
+        }
+        
+        function runAllTests() {
+            results.innerHTML = '';
+            logDiv.textContent = '';
+            log('=== 开始测试 ===\n');
+            
+            // Test 1: Clear and check initial state
+            localStorage.removeItem('task_manager_modules');
+            log('Test 1: 检查初始化状态');
+            const initialModules = moduleStorage.getAll();
+            addTest('初始状态为空', initialModules.length === 0, `长度: ${initialModules.length}`);
+            
+            // Test 2: initDefault creates default modules
+            log('\nTest 2: 测试 initDefault');
+            moduleStorage.initDefault();
+            const afterInit = moduleStorage.getAll();
+            addTest('初始化创建默认模块', afterInit.length === 3, `创建 ${afterInit.length} 个模块`);
+            addTest('模块名称正确', 
+                afterInit[0].name === '前端开发' && 
+                afterInit[1].name === '后端开发' && 
+                afterInit[2].name === '测试',
+                `名称: ${afterInit.map(m => m.name).join(', ')}`
+            );
+            
+            // Test 3: Add new module
+            log('\nTest 3: 测试添加新模块');
+            const newModule = new Module({ name: '测试模块' });
+            log(`创建模块对象: ${JSON.stringify(newModule.toJSON())}`);
+            
+            const addResult = moduleStorage.add(newModule.toJSON());
+            const afterAdd = moduleStorage.getAll();
+            log(`添加结果: ${addResult}`);
+            log(`添加后模块数: ${afterAdd.length}`);
+            
+            addTest('add方法返回true', addResult === true);
+            addTest('模块数量增加', afterAdd.length === 4, `期望 4，实际 ${afterAdd.length}`);
+            addTest('新模块存在', afterAdd.some(m => m.name === '测试模块'));
+            
+            // Test 4: Module class works correctly
+            log('\nTest 4: 测试Module类');
+            const testModule = new Module({ name: '测试' });
+            const json = testModule.toJSON();
+            addTest('Module类生成ID', json.id.startsWith('mod_'));
+            addTest('Module类设置名称', json.name === '测试');
+            addTest('Module类生成颜色', typeof json.color === 'string' && json.color.length === 7);
+            
+            // Test 5: Storage persistence
+            log('\nTest 5: 测试localStorage持久化');
+            const raw = localStorage.getItem('task_manager_modules');
+            addTest('localStorage中有数据', raw !== null);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                addTest('localStorage数据可解析', Array.isArray(parsed));
+                addTest('localStorage数据正确', parsed.length === 4);
+            }
+            
+            // Test 6: Edge cases
+            log('\nTest 6: 边界情况测试');
+            localStorage.removeItem('task_manager_modules');
+            const emptyAdd = moduleStorage.add(new Module({ name: '第一个' }).toJSON());
+            addTest('空存储添加成功', emptyAdd === true);
+            
+            // Test 7: Validate
+            log('\nTest 7: 测试验证');
+            const validModule = new Module({ name: '有效模块' });
+            const invalidModule = new Module({ name: '' });
+            const validErrors = validModule.validate();
+            const invalidErrors = invalidModule.validate();
+            
+            addTest('有效模块验证通过', validErrors.length === 0);
+            addTest('无效模块验证失败', invalidErrors.length > 0, `错误: ${invalidErrors.join(', ')}`);
+            
+            log('\n=== 测试完成 ===');
+        }
+    </script>
+</body>
+</html>

@@ -21,6 +21,8 @@ class Modal {
     }
 
     init() {
+        console.log('[Modal] 初始化Modal');
+        
         // Task modal events
         document.getElementById('addTaskBtn').addEventListener('click', () => this.openCreate());
         document.getElementById('taskModalClose').addEventListener('click', () => this.closeTaskModal());
@@ -33,9 +35,25 @@ class Modal {
         });
 
         // Module modal events
-        document.getElementById('manageModulesBtn').addEventListener('click', () => this.openModuleModal());
-        document.getElementById('moduleModalClose').addEventListener('click', () => this.closeModuleModal());
-        document.getElementById('confirmAddModule').addEventListener('click', () => this.addNewModule());
+        console.log('[Modal] 绑定模块管理按钮事件');
+        const manageBtn = document.getElementById('manageModulesBtn');
+        console.log('[Modal] manageModulesBtn:', manageBtn);
+        manageBtn.addEventListener('click', () => this.openModuleModal());
+        
+        const closeBtn = document.getElementById('moduleModalClose');
+        console.log('[Modal] moduleModalClose:', closeBtn);
+        closeBtn.addEventListener('click', () => this.closeModuleModal());
+        
+        const addBtn = document.getElementById('confirmAddModule');
+        console.log('[Modal] confirmAddModule:', addBtn);
+        console.log('[Modal] confirmAddModule类型:', addBtn.type);
+        console.log('[Modal] confirmAddModule父节点:', addBtn.parentElement.tagName);
+        addBtn.addEventListener('click', (e) => {
+            console.log('[Modal] confirmAddModule被点击!', e);
+            e.preventDefault();
+            e.stopPropagation();
+            this.addNewModule();
+        });
         
         document.getElementById('newModuleName').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.addNewModule();
@@ -55,6 +73,8 @@ class Modal {
                 if (this.isModuleModalOpen()) this.closeModuleModal();
             }
         });
+        
+        console.log('[Modal] Modal初始化完成');
     }
 
     // Task Modal Methods
@@ -238,25 +258,53 @@ class Modal {
     }
 
     addNewModule() {
-        const input = document.getElementById('newModuleName');
-        const name = input.value.trim();
-        
-        console.log('[addNewModule] 尝试添加模块:', name);
-        
-        if (!name) {
-            alert('请输入模块名称');
-            return;
-        }
+        try {
+            console.log('[addNewModule] === 开始添加模块 ===');
+            
+            const input = document.getElementById('newModuleName');
+            console.log('[addNewModule] 输入框元素:', input);
+            
+            if (!input) {
+                console.error('[addNewModule] 输入框未找到!');
+                alert('错误：输入框未找到');
+                return;
+            }
+            
+            const name = input.value.trim();
+            console.log('[addNewModule] 模块名称:', name);
+            
+            if (!name) {
+                alert('请输入模块名称');
+                return;
+            }
 
-        const module = new Module({ name });
-        console.log('[addNewModule] 创建的模块对象:', module.toJSON());
-        
-        const result = moduleStorage.add(module.toJSON());
-        console.log('[addNewModule] 保存结果:', result);
-        
-        input.value = '';
-        this.renderModuleList();
-        this.refreshKanban();
+            console.log('[addNewModule] 准备创建Module对象');
+            const module = new Module({ name });
+            const moduleJson = module.toJSON();
+            console.log('[addNewModule] 创建的模块对象:', moduleJson);
+            
+            console.log('[addNewModule] 准备调用moduleStorage.add');
+            const result = moduleStorage.add(moduleJson);
+            console.log('[addNewModule] moduleStorage.add返回值:', result);
+            console.log('[addNewModule] 保存后的模块列表:', moduleStorage.getAll());
+            
+            if (!result) {
+                alert('保存失败，请重试');
+                return;
+            }
+            
+            input.value = '';
+            console.log('[addNewModule] 准备刷新模块列表');
+            this.renderModuleList();
+            console.log('[addNewModule] 准备刷新看板');
+            this.refreshKanban();
+            
+            console.log('[addNewModule] === 添加模块完成 ===');
+        } catch (error) {
+            console.error('[addNewModule] 发生错误:', error);
+            console.error('[addNewModule] 错误堆栈:', error.stack);
+            alert('添加模块时发生错误: ' + error.message);
+        }
     }
 
     refreshKanban() {
