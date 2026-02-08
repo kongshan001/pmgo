@@ -2,14 +2,12 @@ class Kanban {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.draggedTask = null;
-        this.draggedModule = null;
         this.init();
     }
 
     init() {
         moduleStorage.initDefault();
         this.render();
-        this.setupGlobalEvents();
     }
 
     render() {
@@ -17,16 +15,15 @@ class Kanban {
         const modules = moduleStorage.getAll().sort((a, b) => a.order - b.order);
         
         modules.forEach(moduleData => {
-            const moduleEl = this.createModuleElement(moduleData);
-            this.container.appendChild(moduleEl);
+            const moduleRow = this.createModuleRow(moduleData);
+            this.container.appendChild(moduleRow);
         });
     }
 
-    createModuleElement(moduleData) {
-        const moduleEl = document.createElement('div');
-        moduleEl.className = 'module-card';
-        moduleEl.dataset.moduleId = moduleData.id;
-        moduleEl.draggable = true;
+    createModuleRow(moduleData) {
+        const row = document.createElement('div');
+        row.className = 'module-row';
+        row.dataset.moduleId = moduleData.id;
 
         const tasks = storage.getByModule(moduleData.id);
         const grouped = { todo: [], progress: [], done: [] };
@@ -34,28 +31,32 @@ class Kanban {
             if (grouped[task.status]) grouped[task.status].push(task);
         });
 
-        moduleEl.innerHTML = `
-            <div class="module-header">
-                <div class="module-title-wrapper">
-                    <div class="module-color" style="background: ${moduleData.color}"></div>
-                    <div class="module-title" contenteditable="false" data-module-id="${moduleData.id}">${this.escapeHtml(moduleData.name)}</div>
+        const totalTasks = tasks.length;
+        const inProgressTasks = grouped.progress.length;
+        const doneTasks = grouped.done.length;
+
+        row.innerHTML = `
+            <div class="module-row-header">
+                <div class="module-color" style="background: ${moduleData.color}"></div>
+                <div class="module-title" contenteditable="false" data-module-id="${moduleData.id}">${this.escapeHtml(moduleData.name)}</div>
+                <div class="module-stats">
+                    <span>总计: ${totalTasks}</span>
+                    <span>进行中: ${inProgressTasks}</span>
+                    <span>已完成: ${doneTasks}</span>
                 </div>
-                <div class="module-actions">
-                    <button class="btn-icon" data-action="edit-name" title="重命名">✏️</button>
-                    <button class="btn-icon" data-action="delete" title="删除">🗑️</button>
-                </div>
+                <button class="btn-icon" data-action="delete-module" title="删除模块">🗑️</button>
             </div>
-            <div class="module-content">
+            <div class="module-row-content">
                 ${this.createStatusColumn('todo', '待规划', grouped.todo, moduleData.id)}
                 ${this.createStatusColumn('progress', '推进中', grouped.progress, moduleData.id)}
                 ${this.createStatusColumn('done', '已完成', grouped.done, moduleData.id)}
             </div>
         `;
 
-        this.setupModuleEvents(moduleEl, moduleData);
-        this.setupDragAndDrop(moduleEl, moduleData.id);
+        this.setupModuleEvents(row, moduleData);
+        this.setupDragAndDrop(row, moduleData.id);
 
-        return moduleEl;
+        return row;
     }
 
     createStatusColumn(status, title, tasks, moduleId) {
@@ -101,10 +102,10 @@ class Kanban {
         `;
     }
 
-    setupModuleEvents(moduleEl, moduleData) {
-        const titleEl = moduleEl.querySelector('.module-title');
+    setupModuleEvents(row, moduleData) {
+        const titleEl = row.querySelector('.module-title');
         
-        moduleEl.querySelector('[data-action="edit-name"]').addEventListener('click', () => {
+        titleEl.addEventListener('click', () => {
             titleEl.contentEditable = true;
             titleEl.focus();
             const range = document.createRange();
@@ -129,7 +130,7 @@ class Kanban {
             }
         });
 
-        moduleEl.querySelector('[data-action="delete"]').addEventListener('click', () => {
+        row.querySelector('[data-action="delete-module"]').addEventListener('click', () => {
             if (confirm(`确定要删除模块"${moduleData.name}"吗？该模块下的所有任务也会被删除。`)) {
                 const tasks = storage.getByModule(moduleData.id);
                 tasks.forEach(task => storage.delete(task.id));
@@ -137,22 +138,10 @@ class Kanban {
                 this.render();
             }
         });
-
-        moduleEl.addEventListener('dragstart', (e) => {
-            this.draggedModule = moduleEl;
-            moduleEl.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        });
-
-        moduleEl.addEventListener('dragend', () => {
-            moduleEl.classList.remove('dragging');
-            this.draggedModule = null;
-            this.updateModuleOrder();
-        });
     }
 
-    setupDragAndDrop(moduleEl, moduleId) {
-        const taskLists = moduleEl.querySelectorAll('.task-list');
+    setupDragAndDrop(row, moduleId) {
+        const taskLists = row.querySelectorAll('.task-list');
         
         taskLists.forEach(list => {
             list.addEventListener('dragover', (e) => {
@@ -174,7 +163,9 @@ class Kanban {
                     const taskId = this.draggedTask.dataset.taskId;
                     
                     const updates = { status: newStatus };
-                    if (newModuleId) updates.moduleId = newModuleId;
+                    if (newModuleId && newModuleId !== 'undefined') {
+                        updates.moduleId = newModuleId;
+                    }
                     
                     if (storage.update(taskId, updates)) {
                         this.render();
@@ -183,7 +174,7 @@ class Kanban {
             });
         });
 
-        const taskCards = moduleEl.querySelectorAll('.task-card');
+        const taskCards = row.querySelectorAll('.task-card');
         taskCards.forEach(card => {
             card.addEventListener('dragstart', (e) => {
                 this.draggedTask = card;
@@ -203,41 +194,6 @@ class Kanban {
                 document.dispatchEvent(event);
             });
         });
-    }
-
-    updateModuleOrder() {
-        const modules = Array.from(this.container.querySelectorAll('.module-card'));
-        const orderedIds = modules.map(el => el.dataset.moduleId);
-        moduleStorage.reorder(orderedIds);
-    }
-
-    setupGlobalEvents() {
-        this.container.addEventListener('dragover', (e) => {
-            if (this.draggedModule) {
-                e.preventDefault();
-                const afterElement = this.getDragAfterElement(this.container, e.clientX);
-                if (afterElement) {
-                    this.container.insertBefore(this.draggedModule, afterElement);
-                } else {
-                    this.container.appendChild(this.draggedModule);
-                }
-            }
-        });
-    }
-
-    getDragAfterElement(container, x) {
-        const draggableElements = [...container.querySelectorAll('.module-card:not(.dragging)')];
-        
-        return draggableElements.reduce((closest, child) => {
-            const box = child.getBoundingClientRect();
-            const offset = x - box.left - box.width / 2;
-            
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
-            }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
     escapeHtml(text) {
