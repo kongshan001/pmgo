@@ -1,6 +1,6 @@
 class Storage {
     constructor() {
-        this.key = 'task_manager_data';
+        this.key = 'task_manager_data_v2';
     }
 
     getAll() {
@@ -47,26 +47,44 @@ class Storage {
         return this.getAll().find(t => t.id === id);
     }
 
-    getByStatus(status) {
-        return this.getAll().filter(t => t.status === status);
+    getByStatus(status, moduleId = null) {
+        let tasks = this.getAll().filter(t => t.status === status);
+        if (moduleId) {
+            tasks = tasks.filter(t => t.moduleId === moduleId);
+        }
+        return tasks;
+    }
+
+    getByModule(moduleId) {
+        return this.getAll().filter(t => t.moduleId === moduleId);
+    }
+
+    moveToModule(taskId, moduleId) {
+        return this.update(taskId, { moduleId });
     }
 
     export() {
-        const data = this.getAll();
+        const data = {
+            modules: moduleStorage.getAll(),
+            tasks: this.getAll()
+        };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `tasks_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         URL.revokeObjectURL(url);
     }
 
     import(jsonString) {
         try {
-            const tasks = JSON.parse(jsonString);
-            if (Array.isArray(tasks)) {
-                return this.save(tasks);
+            const data = JSON.parse(jsonString);
+            if (data.modules && Array.isArray(data.modules)) {
+                moduleStorage.save(data.modules);
+            }
+            if (data.tasks && Array.isArray(data.tasks)) {
+                return this.save(data.tasks);
             }
             return false;
         } catch (e) {
@@ -77,6 +95,7 @@ class Storage {
 
     clear() {
         localStorage.removeItem(this.key);
+        localStorage.removeItem('task_manager_modules');
     }
 }
 

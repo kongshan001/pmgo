@@ -1,134 +1,243 @@
 class Kanban {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
-        this.columns = {
-            todo: document.getElementById('list-todo'),
-            progress: document.getElementById('list-progress'),
-            done: document.getElementById('list-done')
-        };
-        this.counts = {
-            todo: document.getElementById('count-todo'),
-            progress: document.getElementById('count-progress'),
-            done: document.getElementById('count-done')
-        };
         this.draggedTask = null;
+        this.draggedModule = null;
         this.init();
     }
 
     init() {
-        this.setupDragAndDrop();
-        this.loadTasks();
+        moduleStorage.initDefault();
+        this.render();
+        this.setupGlobalEvents();
     }
 
-    setupDragAndDrop() {
-        Object.values(this.columns).forEach(column => {
-            column.addEventListener('dragover', (e) => this.handleDragOver(e));
-            column.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-            column.addEventListener('drop', (e) => this.handleDrop(e));
+    render() {
+        this.container.innerHTML = '';
+        const modules = moduleStorage.getAll().sort((a, b) => a.order - b.order);
+        
+        modules.forEach(moduleData => {
+            const moduleEl = this.createModuleElement(moduleData);
+            this.container.appendChild(moduleEl);
         });
     }
 
-    handleDragOver(e) {
-        e.preventDefault();
-        e.currentTarget.classList.add('drag-over');
-    }
+    createModuleElement(moduleData) {
+        const moduleEl = document.createElement('div');
+        moduleEl.className = 'module-card';
+        moduleEl.dataset.moduleId = moduleData.id;
+        moduleEl.draggable = true;
 
-    handleDragLeave(e) {
-        e.currentTarget.classList.remove('drag-over');
-    }
-
-    handleDrop(e) {
-        e.preventDefault();
-        const column = e.currentTarget;
-        column.classList.remove('drag-over');
-        
-        if (this.draggedTask) {
-            const newStatus = column.id.replace('list-', '');
-            const taskId = this.draggedTask.dataset.taskId;
-            
-            if (storage.update(taskId, { status: newStatus })) {
-                this.loadTasks();
-            }
-        }
-    }
-
-    loadTasks() {
-        const tasks = storage.getAll();
+        const tasks = storage.getByModule(moduleData.id);
         const grouped = { todo: [], progress: [], done: [] };
-        
-        tasks.forEach(taskData => {
-            const task = Task.fromJSON(taskData);
-            if (grouped[task.status]) {
-                grouped[task.status].push(task);
-            }
+        tasks.forEach(task => {
+            if (grouped[task.status]) grouped[task.status].push(task);
         });
 
-        Object.keys(this.columns).forEach(status => {
-            this.renderColumn(status, grouped[status]);
-        });
-    }
-
-    renderColumn(status, tasks) {
-        const column = this.columns[status];
-        const countEl = this.counts[status];
-        
-        column.innerHTML = '';
-        countEl.textContent = tasks.length;
-
-        tasks.sort((a, b) => b.updatedAt - a.updatedAt).forEach(task => {
-            const card = this.createTaskCard(task);
-            column.appendChild(card);
-        });
-    }
-
-    createTaskCard(task) {
-        const card = document.createElement('div');
-        card.className = `task-card ${task.isOverdue() ? 'overdue' : ''}`;
-        card.draggable = true;
-        card.dataset.taskId = task.id;
-
-        const tagsHtml = task.tags.map(tag => 
-            `<span class="task-tag">${this.escapeHtml(tag)}</span>`
-        ).join('');
-
-        const dueClass = task.isOverdue() ? 'overdue' : '';
-        const dueText = task.dueDate ? task.formatDate() : '';
-
-        card.innerHTML = `
-            <div class="task-header">
-                <div class="task-title">${this.escapeHtml(task.title)}</div>
-                <span class="task-priority ${task.getPriorityClass()}">${task.getPriorityLabel()}</span>
+        moduleEl.innerHTML = `
+            <div class="module-header">
+                <div class="module-title-wrapper">
+                    <div class="module-color" style="background: ${moduleData.color}"></div>
+                    <div class="module-title" contenteditable="false" data-module-id="${moduleData.id}">${this.escapeHtml(moduleData.name)}</div>
+                </div>
+                <div class="module-actions">
+                    <button class="btn-icon" data-action="edit-name" title="重命名">✏️</button>
+                    <button class="btn-icon" data-action="delete" title="删除">🗑️</button>
+                </div>
             </div>
-            ${task.description ? `<div class="task-desc">${this.escapeHtml(task.description)}</div>` : ''}
-            <div class="task-meta">
-                <div class="task-tags">${tagsHtml}</div>
-                ${dueText ? `<div class="task-due ${dueClass}">${dueText}</div>` : ''}
+            <div class="module-content">
+                ${this.createStatusColumn('todo', '待规划', grouped.todo, moduleData.id)}
+                ${this.createStatusColumn('progress', '推进中', grouped.progress, moduleData.id)}
+                ${this.createStatusColumn('done', '已完成', grouped.done, moduleData.id)}
             </div>
         `;
 
-        card.addEventListener('dragstart', (e) => this.handleDragStart(e, card));
-        card.addEventListener('dragend', (e) => this.handleDragEnd(e, card));
-        card.addEventListener('click', () => this.openTaskEdit(task.id));
+        this.setupModuleEvents(moduleEl, moduleData);
+        this.setupDragAndDrop(moduleEl, moduleData.id);
 
-        return card;
+        return moduleEl;
     }
 
-    handleDragStart(e, card) {
-        this.draggedTask = card;
-        card.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
+    createStatusColumn(status, title, tasks, moduleId) {
+        const tasksHtml = tasks
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .map(task => this.createTaskCardHtml(task))
+            .join('');
+
+        return `
+            <div class="status-column" data-status="${status}">
+                <div class="status-header">
+                    <span>${title}</span>
+                    <span class="status-count">${tasks.length}</span>
+                </div>
+                <div class="task-list" data-status="${status}" data-module-id="${moduleId}">
+                    ${tasksHtml}
+                </div>
+            </div>
+        `;
     }
 
-    handleDragEnd(e, card) {
-        card.classList.remove('dragging');
-        this.draggedTask = null;
+    createTaskCardHtml(task) {
+        const taskObj = Task.fromJSON(task);
+        const tagsHtml = taskObj.tags.map(tag => 
+            `<span class="task-tag">${this.escapeHtml(tag)}</span>`
+        ).join('');
+        
+        const dueClass = taskObj.isOverdue() ? 'overdue' : '';
+        const dueText = taskObj.dueDate ? taskObj.formatDate() : '';
+
+        return `
+            <div class="task-card ${dueClass}" data-task-id="${task.id}" draggable="true">
+                <div class="task-header">
+                    <div class="task-title">${this.escapeHtml(task.title)}</div>
+                    <span class="task-priority ${taskObj.getPriorityClass()}">${taskObj.getPriorityLabel()}</span>
+                </div>
+                ${task.description ? `<div class="task-desc">${this.escapeHtml(task.description)}</div>` : ''}
+                <div class="task-meta">
+                    <div class="task-tags">${tagsHtml}</div>
+                    ${dueText ? `<div class="task-due ${dueClass}">${dueText}</div>` : ''}
+                </div>
+            </div>
+        `;
     }
 
-    openTaskEdit(taskId) {
-        const event = new CustomEvent('openTaskModal', { 
-            detail: { taskId } 
+    setupModuleEvents(moduleEl, moduleData) {
+        const titleEl = moduleEl.querySelector('.module-title');
+        
+        moduleEl.querySelector('[data-action="edit-name"]').addEventListener('click', () => {
+            titleEl.contentEditable = true;
+            titleEl.focus();
+            const range = document.createRange();
+            range.selectNodeContents(titleEl);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
         });
-        document.dispatchEvent(event);
+
+        titleEl.addEventListener('blur', () => {
+            titleEl.contentEditable = false;
+            const newName = titleEl.textContent.trim();
+            if (newName && newName !== moduleData.name) {
+                moduleStorage.update(moduleData.id, { name: newName });
+            }
+        });
+
+        titleEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                titleEl.blur();
+            }
+        });
+
+        moduleEl.querySelector('[data-action="delete"]').addEventListener('click', () => {
+            if (confirm(`确定要删除模块"${moduleData.name}"吗？该模块下的所有任务也会被删除。`)) {
+                const tasks = storage.getByModule(moduleData.id);
+                tasks.forEach(task => storage.delete(task.id));
+                moduleStorage.delete(moduleData.id);
+                this.render();
+            }
+        });
+
+        moduleEl.addEventListener('dragstart', (e) => {
+            this.draggedModule = moduleEl;
+            moduleEl.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        moduleEl.addEventListener('dragend', () => {
+            moduleEl.classList.remove('dragging');
+            this.draggedModule = null;
+            this.updateModuleOrder();
+        });
+    }
+
+    setupDragAndDrop(moduleEl, moduleId) {
+        const taskLists = moduleEl.querySelectorAll('.task-list');
+        
+        taskLists.forEach(list => {
+            list.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                list.classList.add('drag-over');
+            });
+
+            list.addEventListener('dragleave', () => {
+                list.classList.remove('drag-over');
+            });
+
+            list.addEventListener('drop', (e) => {
+                e.preventDefault();
+                list.classList.remove('drag-over');
+                
+                if (this.draggedTask) {
+                    const newStatus = list.dataset.status;
+                    const newModuleId = list.dataset.moduleId;
+                    const taskId = this.draggedTask.dataset.taskId;
+                    
+                    const updates = { status: newStatus };
+                    if (newModuleId) updates.moduleId = newModuleId;
+                    
+                    if (storage.update(taskId, updates)) {
+                        this.render();
+                    }
+                }
+            });
+        });
+
+        const taskCards = moduleEl.querySelectorAll('.task-card');
+        taskCards.forEach(card => {
+            card.addEventListener('dragstart', (e) => {
+                this.draggedTask = card;
+                card.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            card.addEventListener('dragend', () => {
+                card.classList.remove('dragging');
+                this.draggedTask = null;
+            });
+
+            card.addEventListener('click', () => {
+                const event = new CustomEvent('openTaskModal', { 
+                    detail: { taskId: card.dataset.taskId } 
+                });
+                document.dispatchEvent(event);
+            });
+        });
+    }
+
+    updateModuleOrder() {
+        const modules = Array.from(this.container.querySelectorAll('.module-card'));
+        const orderedIds = modules.map(el => el.dataset.moduleId);
+        moduleStorage.reorder(orderedIds);
+    }
+
+    setupGlobalEvents() {
+        this.container.addEventListener('dragover', (e) => {
+            if (this.draggedModule) {
+                e.preventDefault();
+                const afterElement = this.getDragAfterElement(this.container, e.clientX);
+                if (afterElement) {
+                    this.container.insertBefore(this.draggedModule, afterElement);
+                } else {
+                    this.container.appendChild(this.draggedModule);
+                }
+            }
+        });
+    }
+
+    getDragAfterElement(container, x) {
+        const draggableElements = [...container.querySelectorAll('.module-card:not(.dragging)')];
+        
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = x - box.left - box.width / 2;
+            
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
     escapeHtml(text) {
@@ -138,6 +247,6 @@ class Kanban {
     }
 
     refresh() {
-        this.loadTasks();
+        this.render();
     }
 }

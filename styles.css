@@ -9,11 +9,13 @@
     --primary-hover: #4338ca;
     --danger-color: #dc2626;
     --danger-hover: #b91c1c;
+    --success-color: #059669;
     --bg-color: #f3f4f6;
     --card-bg: #ffffff;
     --text-primary: #111827;
     --text-secondary: #6b7280;
     --border-color: #e5e7eb;
+    --module-bg: #f9fafb;
     --priority-high: #ef4444;
     --priority-medium: #f59e0b;
     --priority-low: #10b981;
@@ -26,6 +28,7 @@ body {
     background: var(--bg-color);
     color: var(--text-primary);
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 .header {
@@ -37,12 +40,17 @@ body {
     box-shadow: var(--shadow);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 100;
 }
 
 .header h1 {
     font-size: 1.5rem;
     font-weight: 600;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
 }
 
 .btn-primary {
@@ -91,62 +99,158 @@ body {
     background: var(--danger-hover);
 }
 
-.kanban-container {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
-    padding: 1.5rem 2rem;
-    max-width: 1400px;
-    margin: 0 auto;
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.3rem;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    transition: all 0.2s;
 }
 
-.kanban-column {
+.btn-icon:hover {
     background: var(--bg-color);
-    border-radius: 12px;
-    min-height: 500px;
+    color: var(--text-primary);
 }
 
-.column-header {
+.board-container {
+    display: flex;
+    height: calc(100vh - 70px);
+    overflow-x: auto;
+    padding: 1.5rem;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.modules-scroll {
+    display: flex;
+    gap: 1.5rem;
+    min-width: min-content;
+}
+
+.module-card {
+    background: var(--module-bg);
+    border-radius: 12px;
+    width: 340px;
+    min-width: 340px;
+    max-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s;
+}
+
+.module-card.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.module-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.column-title {
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-
-.column-count {
+    border-bottom: 1px solid var(--border-color);
     background: var(--card-bg);
-    color: var(--text-secondary);
-    padding: 0.2rem 0.6rem;
-    border-radius: 12px;
-    font-size: 0.8rem;
+    border-radius: 12px 12px 0 0;
+}
+
+.module-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.module-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.module-title {
+    font-weight: 600;
+    font-size: 1rem;
+    flex: 1;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.module-title:hover {
+    background: var(--bg-color);
+}
+
+.module-title[contenteditable="true"] {
+    background: var(--bg-color);
+    outline: 2px solid var(--primary-color);
+}
+
+.module-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.module-content {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem;
+    gap: 0.75rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.status-column {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 0.75rem;
+    min-height: 100px;
+}
+
+.status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
     font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.status-count {
+    background: var(--bg-color);
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
 }
 
 .task-list {
-    padding: 0 0.75rem 0.75rem;
-    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 60px;
+}
+
+.task-list.drag-over {
+    background: rgba(79, 70, 229, 0.05);
+    border-radius: 6px;
 }
 
 .task-card {
     background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-    box-shadow: var(--shadow);
+    padding: 0.75rem;
     cursor: grab;
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: 2px solid transparent;
+    transition: all 0.2s;
 }
 
 .task-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow);
+    transform: translateY(-1px);
 }
 
 .task-card.dragging {
@@ -155,7 +259,7 @@ body {
 }
 
 .task-card.overdue {
-    border-left: 4px solid var(--danger-color);
+    border-left: 3px solid var(--danger-color);
 }
 
 .task-header {
@@ -163,22 +267,23 @@ body {
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 0.5rem;
+    gap: 0.5rem;
 }
 
 .task-title {
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     line-height: 1.4;
     flex: 1;
-    margin-right: 0.5rem;
 }
 
 .task-priority {
-    padding: 0.2rem 0.5rem;
+    padding: 0.15rem 0.4rem;
     border-radius: 4px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 600;
     text-transform: uppercase;
+    flex-shrink: 0;
 }
 
 .priority-high {
@@ -198,9 +303,9 @@ body {
 
 .task-desc {
     color: var(--text-secondary);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     line-height: 1.4;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -211,32 +316,54 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--text-secondary);
 }
 
 .task-tags {
     display: flex;
-    gap: 0.3rem;
+    gap: 0.25rem;
     flex-wrap: wrap;
 }
 
 .task-tag {
     background: var(--bg-color);
-    padding: 0.15rem 0.4rem;
+    padding: 0.1rem 0.3rem;
     border-radius: 4px;
     font-size: 0.7rem;
-}
-
-.task-due {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
 }
 
 .task-due.overdue {
     color: var(--danger-color);
     font-weight: 600;
+}
+
+.add-module-btn {
+    background: transparent;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    width: 340px;
+    min-width: 340px;
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.add-module-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.add-icon {
+    font-size: 1.5rem;
+    font-weight: 300;
 }
 
 .modal-overlay {
@@ -247,7 +374,7 @@ body {
     right: 0;
     bottom: 0;
     background: rgba(0,0,0,0.5);
-    z-index: 100;
+    z-index: 200;
     justify-content: center;
     align-items: center;
     padding: 1rem;
@@ -265,6 +392,10 @@ body {
     max-height: 90vh;
     overflow: hidden;
     box-shadow: var(--shadow-lg);
+}
+
+.modal-sm {
+    max-width: 400px;
 }
 
 .modal-header {
@@ -293,6 +424,10 @@ body {
     color: var(--text-primary);
 }
 
+.modal-body {
+    padding: 1.25rem;
+}
+
 .modal-form {
     padding: 1.25rem;
 }
@@ -306,7 +441,6 @@ body {
     font-size: 0.9rem;
     font-weight: 500;
     margin-bottom: 0.4rem;
-    color: var(--text-primary);
 }
 
 .form-group input,
@@ -318,7 +452,7 @@ body {
     border-radius: 6px;
     font-size: 0.9rem;
     font-family: inherit;
-    transition: border-color 0.2s;
+    background: var(--card-bg);
 }
 
 .form-group input:focus,
@@ -348,22 +482,75 @@ body {
     gap: 0.75rem;
 }
 
-@media (max-width: 1024px) {
-    .kanban-container {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    
-    .kanban-column {
-        min-height: auto;
-    }
-    
-    .task-list {
-        min-height: 100px;
-    }
+.modules-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
 }
 
-.task-list.drag-over {
-    background: rgba(79, 70, 229, 0.05);
+.module-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-color);
     border-radius: 8px;
+    margin-bottom: 0.5rem;
+    cursor: grab;
+}
+
+.module-item.dragging {
+    opacity: 0.5;
+}
+
+.module-item-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.module-item-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.module-item-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.add-module-form {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.add-module-form input {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding: 1rem;
+    }
+    
+    .header h1 {
+        font-size: 1.2rem;
+    }
+    
+    .board-container {
+        padding: 1rem;
+    }
+    
+    .module-card,
+    .add-module-btn {
+        width: 300px;
+        min-width: 300px;
+    }
 }

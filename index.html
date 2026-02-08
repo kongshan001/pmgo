@@ -9,43 +9,38 @@
 <body>
     <header class="header">
         <h1>任务管理看板</h1>
-        <button class="btn-primary" id="addTaskBtn">+ 新建任务</button>
+        <div class="header-actions">
+            <button class="btn-secondary" id="manageModulesBtn">模块管理</button>
+            <button class="btn-primary" id="addTaskBtn">+ 新建任务</button>
+        </div>
     </header>
 
-    <main class="kanban-container" id="kanban">
-        <div class="kanban-column" data-status="todo">
-            <div class="column-header">
-                <span class="column-title">待规划</span>
-                <span class="column-count" id="count-todo">0</span>
-            </div>
-            <div class="task-list" id="list-todo"></div>
+    <main class="board-container">
+        <div class="modules-scroll" id="modulesContainer">
+            <!-- 动态生成模块 -->
         </div>
-
-        <div class="kanban-column" data-status="progress">
-            <div class="column-header">
-                <span class="column-title">推进中</span>
-                <span class="column-count" id="count-progress">0</span>
-            </div>
-            <div class="task-list" id="list-progress"></div>
-        </div>
-
-        <div class="kanban-column" data-status="done">
-            <div class="column-header">
-                <span class="column-title">已完成</span>
-                <span class="column-count" id="count-done">0</span>
-            </div>
-            <div class="task-list" id="list-done"></div>
-        </div>
+        
+        <button class="add-module-btn" id="addModuleBtn">
+            <span class="add-icon">+</span>
+            <span>添加模块</span>
+        </button>
     </main>
 
-    <div class="modal-overlay" id="modalOverlay">
+    <!-- 任务模态框 -->
+    <div class="modal-overlay" id="taskModalOverlay">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="modalTitle">新建任务</h2>
-                <button class="modal-close" id="modalClose">&times;</button>
+                <h2 id="taskModalTitle">新建任务</h2>
+                <button class="modal-close" id="taskModalClose">&times;</button>
             </div>
             <form class="modal-form" id="taskForm">
                 <input type="hidden" id="taskId">
+                <div class="form-group">
+                    <label>所属模块</label>
+                    <select id="taskModule" required>
+                        <!-- 动态填充 -->
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>任务标题 *</label>
                     <input type="text" id="taskTitle" required placeholder="请输入任务标题">
@@ -56,6 +51,14 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
+                        <label>状态</label>
+                        <select id="taskStatus">
+                            <option value="todo">待规划</option>
+                            <option value="progress">推进中</option>
+                            <option value="done">已完成</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>优先级</label>
                         <select id="taskPriority">
                             <option value="low">低</option>
@@ -63,10 +66,10 @@
                             <option value="high">高</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>截止日期</label>
-                        <input type="date" id="taskDueDate">
-                    </div>
+                </div>
+                <div class="form-group">
+                    <label>截止日期</label>
+                    <input type="date" id="taskDueDate">
                 </div>
                 <div class="form-group">
                     <label>标签（用逗号分隔）</label>
@@ -75,7 +78,7 @@
                 <div class="form-actions">
                     <button type="button" class="btn-danger" id="deleteTaskBtn" style="display:none">删除</button>
                     <div class="form-actions-right">
-                        <button type="button" class="btn-secondary" id="cancelBtn">取消</button>
+                        <button type="button" class="btn-secondary" id="cancelTaskBtn">取消</button>
                         <button type="submit" class="btn-primary">保存</button>
                     </div>
                 </div>
@@ -83,6 +86,26 @@
         </div>
     </div>
 
+    <!-- 模块管理模态框 -->
+    <div class="modal-overlay" id="moduleModalOverlay">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2>模块管理</h2>
+                <button class="modal-close" id="moduleModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modules-list" id="modulesList">
+                    <!-- 动态生成模块列表 -->
+                </div>
+                <div class="add-module-form">
+                    <input type="text" id="newModuleName" placeholder="新模块名称">
+                    <button class="btn-primary" id="confirmAddModule">添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="module.js"></script>
     <script src="storage.js"></script>
     <script src="task.js"></script>
     <script src="modal.js"></script>

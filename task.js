@@ -7,6 +7,7 @@ class Task {
         this.priority = data.priority || 'medium';
         this.dueDate = data.dueDate || '';
         this.tags = this.parseTags(data.tags);
+        this.moduleId = data.moduleId || null;
         this.createdAt = data.createdAt || Date.now();
         this.updatedAt = data.updatedAt || Date.now();
     }
@@ -46,6 +47,7 @@ class Task {
             priority: this.priority,
             dueDate: this.dueDate,
             tags: this.tags,
+            moduleId: this.moduleId,
             createdAt: this.createdAt,
             updatedAt: this.updatedAt
         };

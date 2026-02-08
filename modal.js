@@ -1,17 +1,16 @@
 class Modal {
     constructor() {
-        this.overlay = document.getElementById('modalOverlay');
-        this.form = document.getElementById('taskForm');
-        this.titleEl = document.getElementById('modalTitle');
-        this.closeBtn = document.getElementById('modalClose');
-        this.cancelBtn = document.getElementById('cancelBtn');
-        this.deleteBtn = document.getElementById('deleteTaskBtn');
-        this.addBtn = document.getElementById('addTaskBtn');
+        this.taskOverlay = document.getElementById('taskModalOverlay');
+        this.moduleOverlay = document.getElementById('moduleModalOverlay');
+        this.taskForm = document.getElementById('taskForm');
+        this.taskTitleEl = document.getElementById('taskModalTitle');
         
-        this.inputs = {
+        this.taskInputs = {
             id: document.getElementById('taskId'),
+            module: document.getElementById('taskModule'),
             title: document.getElementById('taskTitle'),
             description: document.getElementById('taskDesc'),
+            status: document.getElementById('taskStatus'),
             priority: document.getElementById('taskPriority'),
             dueDate: document.getElementById('taskDueDate'),
             tags: document.getElementById('taskTags')
@@ -22,14 +21,29 @@ class Modal {
     }
 
     init() {
-        this.addBtn.addEventListener('click', () => this.openCreate());
-        this.closeBtn.addEventListener('click', () => this.close());
-        this.cancelBtn.addEventListener('click', () => this.close());
-        this.deleteBtn.addEventListener('click', () => this.deleteTask());
-        this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+        // Task modal events
+        document.getElementById('addTaskBtn').addEventListener('click', () => this.openCreate());
+        document.getElementById('taskModalClose').addEventListener('click', () => this.closeTaskModal());
+        document.getElementById('cancelTaskBtn').addEventListener('click', () => this.closeTaskModal());
+        document.getElementById('deleteTaskBtn').addEventListener('click', () => this.deleteTask());
+        this.taskForm.addEventListener('submit', (e) => this.handleSubmit(e));
         
-        this.overlay.addEventListener('click', (e) => {
-            if (e.target === this.overlay) this.close();
+        this.taskOverlay.addEventListener('click', (e) => {
+            if (e.target === this.taskOverlay) this.closeTaskModal();
+        });
+
+        // Module modal events
+        document.getElementById('manageModulesBtn').addEventListener('click', () => this.openModuleModal());
+        document.getElementById('addModuleBtn').addEventListener('click', () => this.openModuleModal());
+        document.getElementById('moduleModalClose').addEventListener('click', () => this.closeModuleModal());
+        document.getElementById('confirmAddModule').addEventListener('click', () => this.addNewModule());
+        
+        document.getElementById('newModuleName').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.addNewModule();
+        });
+
+        this.moduleOverlay.addEventListener('click', (e) => {
+            if (e.target === this.moduleOverlay) this.closeModuleModal();
         });
 
         document.addEventListener('openTaskModal', (e) => {
@@ -37,19 +51,22 @@ class Modal {
         });
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isOpen()) {
-                this.close();
+            if (e.key === 'Escape') {
+                if (this.isTaskModalOpen()) this.closeTaskModal();
+                if (this.isModuleModalOpen()) this.closeModuleModal();
             }
         });
     }
 
+    // Task Modal Methods
     openCreate() {
         this.currentTaskId = null;
-        this.resetForm();
-        this.titleEl.textContent = '新建任务';
-        this.deleteBtn.style.display = 'none';
-        this.show();
-        this.inputs.title.focus();
+        this.resetTaskForm();
+        this.populateModuleSelect();
+        this.taskTitleEl.textContent = '新建任务';
+        document.getElementById('deleteTaskBtn').style.display = 'none';
+        this.showTaskModal();
+        this.taskInputs.title.focus();
     }
 
     openEdit(taskId) {
@@ -57,40 +74,50 @@ class Modal {
         if (!taskData) return;
 
         this.currentTaskId = taskId;
-        this.populateForm(taskData);
-        this.titleEl.textContent = '编辑任务';
-        this.deleteBtn.style.display = 'block';
-        this.show();
+        this.populateModuleSelect();
+        this.populateTaskForm(taskData);
+        this.taskTitleEl.textContent = '编辑任务';
+        document.getElementById('deleteTaskBtn').style.display = 'block';
+        this.showTaskModal();
     }
 
-    show() {
-        this.overlay.classList.add('active');
+    showTaskModal() {
+        this.taskOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
     }
 
-    close() {
-        this.overlay.classList.remove('active');
+    closeTaskModal() {
+        this.taskOverlay.classList.remove('active');
         document.body.style.overflow = '';
-        this.resetForm();
+        this.resetTaskForm();
     }
 
-    isOpen() {
-        return this.overlay.classList.contains('active');
+    isTaskModalOpen() {
+        return this.taskOverlay.classList.contains('active');
     }
 
-    resetForm() {
-        this.form.reset();
-        this.inputs.id.value = '';
+    resetTaskForm() {
+        this.taskForm.reset();
+        this.taskInputs.id.value = '';
         this.currentTaskId = null;
     }
 
-    populateForm(taskData) {
-        this.inputs.id.value = taskData.id;
-        this.inputs.title.value = taskData.title || '';
-        this.inputs.description.value = taskData.description || '';
-        this.inputs.priority.value = taskData.priority || 'medium';
-        this.inputs.dueDate.value = taskData.dueDate || '';
-        this.inputs.tags.value = Array.isArray(taskData.tags) 
+    populateModuleSelect(selectedModuleId = null) {
+        const modules = moduleStorage.getAll().sort((a, b) => a.order - b.order);
+        this.taskInputs.module.innerHTML = modules.map(m => 
+            `<option value="${m.id}" ${m.id === selectedModuleId ? 'selected' : ''}>${m.name}</option>`
+        ).join('');
+    }
+
+    populateTaskForm(taskData) {
+        this.taskInputs.id.value = taskData.id;
+        this.taskInputs.module.value = taskData.moduleId || '';
+        this.taskInputs.title.value = taskData.title || '';
+        this.taskInputs.description.value = taskData.description || '';
+        this.taskInputs.status.value = taskData.status || 'todo';
+        this.taskInputs.priority.value = taskData.priority || 'medium';
+        this.taskInputs.dueDate.value = taskData.dueDate || '';
+        this.taskInputs.tags.value = Array.isArray(taskData.tags) 
             ? taskData.tags.join(', ') 
             : '';
     }
@@ -99,15 +126,16 @@ class Modal {
         e.preventDefault();
         
         const taskData = {
-            title: this.inputs.title.value.trim(),
-            description: this.inputs.description.value.trim(),
-            priority: this.inputs.priority.value,
-            dueDate: this.inputs.dueDate.value,
-            tags: this.inputs.tags.value
+            moduleId: this.taskInputs.module.value,
+            title: this.taskInputs.title.value.trim(),
+            description: this.taskInputs.description.value.trim(),
+            status: this.taskInputs.status.value,
+            priority: this.taskInputs.priority.value,
+            dueDate: this.taskInputs.dueDate.value,
+            tags: this.taskInputs.tags.value
         };
 
         if (this.currentTaskId) {
-            taskData.id = this.currentTaskId;
             const task = Task.fromJSON(storage.getById(this.currentTaskId));
             Object.assign(task, taskData);
             task.updatedAt = Date.now();
@@ -120,7 +148,6 @@ class Modal {
             
             storage.update(this.currentTaskId, task.toJSON());
         } else {
-            taskData.status = 'todo';
             const task = new Task(taskData);
             
             const errors = task.validate();
@@ -132,7 +159,7 @@ class Modal {
             storage.add(task.toJSON());
         }
 
-        this.close();
+        this.closeTaskModal();
         this.refreshKanban();
     }
 
@@ -141,9 +168,89 @@ class Modal {
         
         if (confirm('确定要删除这个任务吗？此操作不可恢复。')) {
             storage.delete(this.currentTaskId);
-            this.close();
+            this.closeTaskModal();
             this.refreshKanban();
         }
+    }
+
+    // Module Modal Methods
+    openModuleModal() {
+        this.renderModuleList();
+        this.showModuleModal();
+    }
+
+    showModuleModal() {
+        this.moduleOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        document.getElementById('newModuleName').focus();
+    }
+
+    closeModuleModal() {
+        this.moduleOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+        document.getElementById('newModuleName').value = '';
+    }
+
+    isModuleModalOpen() {
+        return this.moduleOverlay.classList.contains('active');
+    }
+
+    renderModuleList() {
+        const container = document.getElementById('modulesList');
+        const modules = moduleStorage.getAll().sort((a, b) => a.order - b.order);
+        
+        container.innerHTML = modules.map(m => `
+            <div class="module-item" data-module-id="${m.id}">
+                <div class="module-item-color" style="background: ${m.color}"></div>
+                <span class="module-item-name">${m.name}</span>
+                <div class="module-item-actions">
+                    <button class="btn-icon" data-action="edit" title="编辑">✏️</button>
+                    <button class="btn-icon" data-action="delete" title="删除">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+
+        // Add event listeners
+        container.querySelectorAll('.module-item').forEach(item => {
+            const moduleId = item.dataset.moduleId;
+            
+            item.querySelector('[data-action="edit"]').addEventListener('click', () => {
+                const nameSpan = item.querySelector('.module-item-name');
+                const newName = prompt('请输入新模块名称:', nameSpan.textContent);
+                if (newName && newName.trim()) {
+                    moduleStorage.update(moduleId, { name: newName.trim() });
+                    this.renderModuleList();
+                    this.refreshKanban();
+                }
+            });
+
+            item.querySelector('[data-action="delete"]').addEventListener('click', () => {
+                const module = moduleStorage.getById(moduleId);
+                if (confirm(`确定要删除模块"${module.name}"吗？该模块下的所有任务也会被删除。`)) {
+                    const tasks = storage.getByModule(moduleId);
+                    tasks.forEach(task => storage.delete(task.id));
+                    moduleStorage.delete(moduleId);
+                    this.renderModuleList();
+                    this.refreshKanban();
+                }
+            });
+        });
+    }
+
+    addNewModule() {
+        const input = document.getElementById('newModuleName');
+        const name = input.value.trim();
+        
+        if (!name) {
+            alert('请输入模块名称');
+            return;
+        }
+
+        const module = new Module({ name });
+        moduleStorage.add(module.toJSON());
+        input.value = '';
+        this.renderModuleList();
+        this.refreshKanban();
     }
 
     refreshKanban() {
