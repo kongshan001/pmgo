@@ -14,10 +14,10 @@ class Config {
 
     getDefault() {
         return {
-            storageType: 'local',
+            storageType: 'cloud',
             jsonBin: {
-                apiKey: '',
-                binId: ''
+                apiKey: '$2a$10$YlR6MS2kzymOxzGqdT/ye.7SlZ.2/r4in64Wtw0JgpQ0gXI/UU3Ia',
+                binId: '6989c2d3ae596e708f1d51ea'
             }
         };
     }
