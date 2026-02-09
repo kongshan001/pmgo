@@ -47,13 +47,18 @@ class LocalStorageAdapter {
 class JsonBinAdapter {
     constructor(binKey) {
         this.binKey = binKey;
+        this._saveQueue = Promise.resolve();
     }
 
-    async getHeaders() {
-        return {
+    async getHeaders(version = null) {
+        const headers = {
             'Content-Type': 'application/json',
             'X-Master-Key': config.jsonBinConfig.apiKey
         };
+        if (version) {
+            headers['X-Bin-Meta'] = 'false';
+        }
+        return headers;
     }
 
     async getAll() {
@@ -71,23 +76,43 @@ class JsonBinAdapter {
 
     async save(data) {
         try {
-            // 先获取完整数据，避免覆盖其他字段
-            const response = await fetch(`https://api.jsonbin.io/v3/b/${config.jsonBinConfig.binId}/latest`, {
-                headers: await this.getHeaders()
+            const otherKey = this.binKey === 'task_manager_data_v2' ? 'task_manager_modules' : 'task_manager_data_v2';
+            
+            // 使用队列确保保存操作串行执行
+            this._saveQueue = this._saveQueue.then(async () => {
+                // 先获取完整数据，避免覆盖其他字段
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${config.jsonBinConfig.binId}/latest`, {
+                    headers: await this.getHeaders()
+                });
+                const fullData = await response.json();
+                
+                // 构建完整的数据结构
+                const newData = {
+                    [this.binKey]: data,
+                    [otherKey]: fullData.record[otherKey] || []
+                };
+                
+                console.log(`[JsonBin] 保存 ${this.binKey}:`, {
+                    当前保存: data.length,
+                    保留数据: (fullData.record[otherKey] || []).length
+                });
+                
+                // 保存完整数据
+                const saveResponse = await fetch(`https://api.jsonbin.io/v3/b/${config.jsonBinConfig.binId}`, {
+                    method: 'PUT',
+                    headers: await this.getHeaders(),
+                    body: JSON.stringify(newData)
+                });
+                
+                if (!saveResponse.ok) {
+                    console.error('[JsonBin] 保存响应错误:', saveResponse.status, await saveResponse.text());
+                    return false;
+                }
+                
+                return true;
             });
-            const fullData = await response.json();
             
-            // 更新对应字段
-            fullData.record[this.binKey] = data;
-            
-            // 保存完整数据
-            const saveResponse = await fetch(`https://api.jsonbin.io/v3/b/${config.jsonBinConfig.binId}`, {
-                method: 'PUT',
-                headers: await this.getHeaders(),
-                body: JSON.stringify(fullData.record)
-            });
-            
-            return saveResponse.ok;
+            return await this._saveQueue;
         } catch (error) {
             console.error('[JsonBin] 保存失败:', error);
             return false;
