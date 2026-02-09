@@ -71,12 +71,23 @@ class JsonBinAdapter {
 
     async save(data) {
         try {
-            const response = await fetch(`https://api.jsonbin.io/v3/b/${config.jsonBinConfig.binId}`, {
+            // 先获取完整数据，避免覆盖其他字段
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${config.jsonBinConfig.binId}/latest`, {
+                headers: await this.getHeaders()
+            });
+            const fullData = await response.json();
+            
+            // 更新对应字段
+            fullData.record[this.binKey] = data;
+            
+            // 保存完整数据
+            const saveResponse = await fetch(`https://api.jsonbin.io/v3/b/${config.jsonBinConfig.binId}`, {
                 method: 'PUT',
                 headers: await this.getHeaders(),
-                body: JSON.stringify({ [this.binKey]: data })
+                body: JSON.stringify(fullData.record)
             });
-            return response.ok;
+            
+            return saveResponse.ok;
         } catch (error) {
             console.error('[JsonBin] 保存失败:', error);
             return false;
