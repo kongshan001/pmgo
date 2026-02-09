@@ -1,72 +1,62 @@
 class Storage {
     constructor() {
         this.key = 'task_manager_data_v2';
+        this.adapter = null;
+        this.init();
     }
 
-    getAll() {
-        try {
-            const data = localStorage.getItem(this.key);
-            return data ? JSON.parse(data) : [];
-        } catch (e) {
-            console.error('读取数据失败:', e);
-            return [];
-        }
+    init() {
+        this.adapter = StorageFactory.create(this.key);
     }
 
-    save(tasks) {
-        try {
-            localStorage.setItem(this.key, JSON.stringify(tasks));
-            return true;
-        } catch (e) {
-            console.error('保存数据失败:', e);
-            return false;
-        }
+    async getAll() {
+        return await this.adapter.getAll();
     }
 
-    add(task) {
-        const tasks = this.getAll();
-        tasks.push(task);
-        return this.save(tasks);
+    async save(tasks) {
+        return await this.adapter.save(tasks);
     }
 
-    update(id, updates) {
-        const tasks = this.getAll();
-        const index = tasks.findIndex(t => t.id === id);
-        if (index === -1) return false;
-        tasks[index] = { ...tasks[index], ...updates, updatedAt: Date.now() };
-        return this.save(tasks);
+    async add(task) {
+        return await this.adapter.add(task);
     }
 
-    delete(id) {
-        const tasks = this.getAll();
-        const filtered = tasks.filter(t => t.id !== id);
-        return this.save(filtered);
+    async update(id, updates) {
+        const taskWithTimestamp = { ...updates, updatedAt: Date.now() };
+        return await this.adapter.update(id, taskWithTimestamp);
     }
 
-    getById(id) {
-        return this.getAll().find(t => t.id === id);
+    async delete(id) {
+        return await this.adapter.delete(id);
     }
 
-    getByStatus(status, moduleId = null) {
-        let tasks = this.getAll().filter(t => t.status === status);
+    async getById(id) {
+        const tasks = await this.getAll();
+        return tasks.find(t => t.id === id);
+    }
+
+    async getByStatus(status, moduleId = null) {
+        const tasks = await this.getAll();
+        let filtered = tasks.filter(t => t.status === status);
         if (moduleId) {
-            tasks = tasks.filter(t => t.moduleId === moduleId);
+            filtered = filtered.filter(t => t.moduleId === moduleId);
         }
-        return tasks;
+        return filtered;
     }
 
-    getByModule(moduleId) {
-        return this.getAll().filter(t => t.moduleId === moduleId);
+    async getByModule(moduleId) {
+        const tasks = await this.getAll();
+        return tasks.filter(t => t.moduleId === moduleId);
     }
 
-    moveToModule(taskId, moduleId) {
-        return this.update(taskId, { moduleId });
+    async moveToModule(taskId, moduleId) {
+        return await this.update(taskId, { moduleId });
     }
 
-    export() {
+    async export() {
         const data = {
-            modules: moduleStorage.getAll(),
-            tasks: this.getAll()
+            modules: await moduleStorage.getAll(),
+            tasks: await this.getAll()
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -77,14 +67,14 @@ class Storage {
         URL.revokeObjectURL(url);
     }
 
-    import(jsonString) {
+    async import(jsonString) {
         try {
             const data = JSON.parse(jsonString);
             if (data.modules && Array.isArray(data.modules)) {
-                moduleStorage.save(data.modules);
+                await moduleStorage.save(data.modules);
             }
             if (data.tasks && Array.isArray(data.tasks)) {
-                return this.save(data.tasks);
+                return await this.save(data.tasks);
             }
             return false;
         } catch (e) {
@@ -93,9 +83,8 @@ class Storage {
         }
     }
 
-    clear() {
-        localStorage.removeItem(this.key);
-        localStorage.removeItem('task_manager_modules');
+    async clear() {
+        await this.adapter.clear();
     }
 }
 

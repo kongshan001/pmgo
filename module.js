@@ -47,76 +47,69 @@ class ModuleStorage {
             { name: '后端开发', order: 1 },
             { name: '测试', order: 2 }
         ];
+        this.adapter = null;
+        this.init();
     }
 
-    initDefault() {
-        if (this.getAll().length === 0) {
-            const modules = this.defaultModules.map((m, i) => {
+    init() {
+        this.adapter = StorageFactory.create(this.key);
+    }
+
+    async initDefault() {
+        const modules = await this.getAll();
+        if (modules.length === 0) {
+            const defaultModules = this.defaultModules.map((m, i) => {
                 const mod = new Module(m);
                 mod.order = i;
                 return mod.toJSON();
             });
-            this.save(modules);
+            await this.save(defaultModules);
         }
     }
 
-    getAll() {
-        try {
-            const data = localStorage.getItem(this.key);
-            return data ? JSON.parse(data) : [];
-        } catch (e) {
-            console.error('读取模块数据失败:', e);
-            return [];
-        }
+    async getAll() {
+        return await this.adapter.getAll();
     }
 
-    save(modules) {
-        try {
-            localStorage.setItem(this.key, JSON.stringify(modules));
-            return true;
-        } catch (e) {
-            console.error('保存模块数据失败:', e);
-            return false;
-        }
+    async save(modules) {
+        return await this.adapter.save(modules);
     }
 
-    add(module) {
+    async add(module) {
         console.log('[moduleStorage.add] 添加模块:', module);
-        const modules = this.getAll();
+        const modules = await this.getAll();
         console.log('[moduleStorage.add] 现有模块数量:', modules.length);
         module.order = modules.length;
-        modules.push(module);
-        console.log('[moduleStorage.add] 添加后模块数量:', modules.length);
-        return this.save(modules);
+        const result = await this.adapter.add(module);
+        console.log('[moduleStorage.add] 添加结果:', result);
+        return result !== null;
     }
 
-    update(id, updates) {
-        const modules = this.getAll();
-        const index = modules.findIndex(m => m.id === id);
-        if (index === -1) return false;
-        modules[index] = { ...modules[index], ...updates };
-        return this.save(modules);
+    async update(id, updates) {
+        return await this.adapter.update(id, updates);
     }
 
-    delete(id) {
-        const modules = this.getAll().filter(m => m.id !== id);
-        modules.forEach((m, i) => m.order = i);
-        return this.save(modules);
+    async delete(id) {
+        const modules = await this.getAll();
+        const filtered = modules.filter(m => m.id !== id);
+        filtered.forEach((m, i) => m.order = i);
+        return await this.adapter.save(filtered);
     }
 
-    getById(id) {
-        return this.getAll().find(m => m.id === id);
+    async getById(id) {
+        const modules = await this.getAll();
+        return modules.find(m => m.id === id);
     }
 
-    reorder(orderedIds) {
-        const modules = this.getAll();
+    async reorder(orderedIds) {
+        const modules = await this.getAll();
         const moduleMap = new Map(modules.map(m => [m.id, m]));
         const reordered = orderedIds.map((id, index) => {
             const m = moduleMap.get(id);
             if (m) m.order = index;
             return m;
         }).filter(Boolean);
-        return this.save(reordered);
+        return await this.save(reordered);
     }
 }
 

@@ -10,6 +10,7 @@
     <header class="header">
         <h1>任务管理看板</h1>
         <div class="header-actions">
+            <button class="btn-secondary" id="configBtn">⚙️ 设置</button>
             <button class="btn-secondary" id="manageModulesBtn">模块管理</button>
             <button class="btn-primary" id="addTaskBtn">+ 新建任务</button>
         </div>
@@ -98,6 +99,56 @@
         </div>
     </div>
 
+    <!-- 设置模态框 -->
+    <div class="modal-overlay" id="configModalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>存储设置</h2>
+                <button class="modal-close" id="configModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>存储类型</label>
+                    <select id="storageType">
+                        <option value="local">本地存储 (localStorage)</option>
+                        <option value="cloud">云端存储 (JSONBin.io)</option>
+                    </select>
+                </div>
+                
+                <div id="cloudSettings" style="display: none;">
+                    <div class="form-group">
+                        <label>JSONBin API Key</label>
+                        <input type="text" id="jsonBinApiKey" placeholder="输入你的 JSONBin API Key">
+                        <small>获取方式: <a href="https://jsonbin.io/login" target="_blank">登录 JSONBin.io</a> → API Keys</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>JSONBin Bin ID</label>
+                        <input type="text" id="jsonBinBinId" placeholder="输入你的 Bin ID">
+                        <small>获取方式: 创建新 Bin 后，从 URL 复制 ID</small>
+                    </div>
+                    
+                    <div class="info-box">
+                        <strong>使用说明：</strong>
+                        <ol>
+                            <li>访问 <a href="https://jsonbin.io" target="_blank">jsonbin.io</a> 并注册账号</li>
+                            <li>创建一个新的 Bin，内容填写: <code>{"tasks":[], "modules":[]}</code></li>
+                            <li>复制 API Key 和 Bin ID 填入上方</li>
+                            <li>点击保存后刷新页面生效</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelConfigBtn">取消</button>
+                    <button type="button" class="btn-primary" id="saveConfigBtn">保存配置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="storage-adapters.js"></script>
     <script src="module.js"></script>
     <script src="storage.js"></script>
     <script src="task.js"></script>

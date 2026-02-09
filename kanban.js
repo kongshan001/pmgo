@@ -5,27 +5,28 @@ class Kanban {
         this.init();
     }
 
-    init() {
-        moduleStorage.initDefault();
-        this.render();
+    async init() {
+        await moduleStorage.initDefault();
+        await this.render();
     }
 
-    render() {
+    async render() {
         this.container.innerHTML = '';
-        const modules = moduleStorage.getAll().sort((a, b) => a.order - b.order);
+        const modules = await moduleStorage.getAll();
+        modules.sort((a, b) => a.order - b.order);
         
-        modules.forEach(moduleData => {
-            const moduleRow = this.createModuleRow(moduleData);
+        for (const moduleData of modules) {
+            const moduleRow = await this.createModuleRow(moduleData);
             this.container.appendChild(moduleRow);
-        });
+        }
     }
 
-    createModuleRow(moduleData) {
+    async createModuleRow(moduleData) {
         const row = document.createElement('div');
         row.className = 'module-row';
         row.dataset.moduleId = moduleData.id;
 
-        const tasks = storage.getByModule(moduleData.id);
+        const tasks = await storage.getByModule(moduleData.id);
         const grouped = { todo: [], progress: [], done: [] };
         tasks.forEach(task => {
             if (grouped[task.status]) grouped[task.status].push(task);
@@ -115,11 +116,11 @@ class Kanban {
             sel.addRange(range);
         });
 
-        titleEl.addEventListener('blur', () => {
+        titleEl.addEventListener('blur', async () => {
             titleEl.contentEditable = false;
             const newName = titleEl.textContent.trim();
             if (newName && newName !== moduleData.name) {
-                moduleStorage.update(moduleData.id, { name: newName });
+                await moduleStorage.update(moduleData.id, { name: newName });
             }
         });
 
@@ -130,12 +131,14 @@ class Kanban {
             }
         });
 
-        row.querySelector('[data-action="delete-module"]').addEventListener('click', () => {
+        row.querySelector('[data-action="delete-module"]').addEventListener('click', async () => {
             if (confirm(`确定要删除模块"${moduleData.name}"吗？该模块下的所有任务也会被删除。`)) {
-                const tasks = storage.getByModule(moduleData.id);
-                tasks.forEach(task => storage.delete(task.id));
-                moduleStorage.delete(moduleData.id);
-                this.render();
+                const tasks = await storage.getByModule(moduleData.id);
+                for (const task of tasks) {
+                    await storage.delete(task.id);
+                }
+                await moduleStorage.delete(moduleData.id);
+                await this.render();
             }
         });
     }
@@ -153,7 +156,7 @@ class Kanban {
                 list.classList.remove('drag-over');
             });
 
-            list.addEventListener('drop', (e) => {
+            list.addEventListener('drop', async (e) => {
                 e.preventDefault();
                 list.classList.remove('drag-over');
                 
@@ -167,9 +170,8 @@ class Kanban {
                         updates.moduleId = newModuleId;
                     }
                     
-                    if (storage.update(taskId, updates)) {
-                        this.render();
-                    }
+                    await storage.update(taskId, updates);
+                    await this.render();
                 }
             });
         });
@@ -202,7 +204,7 @@ class Kanban {
         return div.innerHTML;
     }
 
-    refresh() {
-        this.render();
+    async refresh() {
+        await this.render();
     }
 }

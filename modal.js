@@ -2,6 +2,7 @@ class Modal {
     constructor() {
         this.taskOverlay = document.getElementById('taskModalOverlay');
         this.moduleOverlay = document.getElementById('moduleModalOverlay');
+        this.configOverlay = document.getElementById('configModalOverlay');
         this.taskForm = document.getElementById('taskForm');
         this.taskTitleEl = document.getElementById('taskModalTitle');
         
@@ -63,6 +64,17 @@ class Modal {
             if (e.target === this.moduleOverlay) this.closeModuleModal();
         });
 
+        // Config modal events
+        document.getElementById('configBtn').addEventListener('click', () => this.openConfigModal());
+        document.getElementById('configModalClose').addEventListener('click', () => this.closeConfigModal());
+        document.getElementById('cancelConfigBtn').addEventListener('click', () => this.closeConfigModal());
+        document.getElementById('saveConfigBtn').addEventListener('click', () => this.saveConfig());
+        document.getElementById('storageType').addEventListener('change', (e) => this.toggleCloudSettings(e.target.value));
+        
+        this.configOverlay.addEventListener('click', (e) => {
+            if (e.target === this.configOverlay) this.closeConfigModal();
+        });
+
         document.addEventListener('openTaskModal', (e) => {
             this.openEdit(e.detail.taskId);
         });
@@ -71,6 +83,7 @@ class Modal {
             if (e.key === 'Escape') {
                 if (this.isTaskModalOpen()) this.closeTaskModal();
                 if (this.isModuleModalOpen()) this.closeModuleModal();
+                if (this.isConfigModalOpen()) this.closeConfigModal();
             }
         });
         
@@ -78,22 +91,22 @@ class Modal {
     }
 
     // Task Modal Methods
-    openCreate() {
+    async openCreate() {
         this.currentTaskId = null;
         this.resetTaskForm();
-        this.populateModuleSelect();
+        await this.populateModuleSelect();
         this.taskTitleEl.textContent = '新建任务';
         document.getElementById('deleteTaskBtn').style.display = 'none';
         this.showTaskModal();
         this.taskInputs.title.focus();
     }
 
-    openEdit(taskId) {
-        const taskData = storage.getById(taskId);
+    async openEdit(taskId) {
+        const taskData = await storage.getById(taskId);
         if (!taskData) return;
 
         this.currentTaskId = taskId;
-        this.populateModuleSelect();
+        await this.populateModuleSelect();
         this.populateTaskForm(taskData);
         this.taskTitleEl.textContent = '编辑任务';
         document.getElementById('deleteTaskBtn').style.display = 'block';
@@ -121,8 +134,9 @@ class Modal {
         this.currentTaskId = null;
     }
 
-    populateModuleSelect(selectedModuleId = null) {
-        const modules = moduleStorage.getAll().sort((a, b) => a.order - b.order);
+    async populateModuleSelect(selectedModuleId = null) {
+        const modules = await moduleStorage.getAll();
+        modules.sort((a, b) => a.order - b.order);
         this.taskInputs.module.innerHTML = modules.map(m => 
             `<option value="${m.id}" ${m.id === selectedModuleId ? 'selected' : ''}>${m.name}</option>`
         ).join('');
@@ -141,7 +155,7 @@ class Modal {
             : '';
     }
 
-    handleSubmit(e) {
+    async handleSubmit(e) {
         e.preventDefault();
         
         const taskData = {
@@ -155,7 +169,8 @@ class Modal {
         };
 
         if (this.currentTaskId) {
-            const task = Task.fromJSON(storage.getById(this.currentTaskId));
+            const taskDataFromStorage = await storage.getById(this.currentTaskId);
+            const task = Task.fromJSON(taskDataFromStorage);
             Object.assign(task, taskData);
             task.updatedAt = Date.now();
             
@@ -165,7 +180,7 @@ class Modal {
                 return;
             }
             
-            storage.update(this.currentTaskId, task.toJSON());
+            await storage.update(this.currentTaskId, task.toJSON());
         } else {
             const task = new Task(taskData);
             
@@ -175,26 +190,26 @@ class Modal {
                 return;
             }
             
-            storage.add(task.toJSON());
+            await storage.add(task.toJSON());
         }
 
         this.closeTaskModal();
         this.refreshKanban();
     }
 
-    deleteTask() {
+    async deleteTask() {
         if (!this.currentTaskId) return;
         
         if (confirm('确定要删除这个任务吗？此操作不可恢复。')) {
-            storage.delete(this.currentTaskId);
+            await storage.delete(this.currentTaskId);
             this.closeTaskModal();
             this.refreshKanban();
         }
     }
 
     // Module Modal Methods
-    openModuleModal() {
-        this.renderModuleList();
+    async openModuleModal() {
+        await this.renderModuleList();
         this.showModuleModal();
     }
 
@@ -214,9 +229,10 @@ class Modal {
         return this.moduleOverlay.classList.contains('active');
     }
 
-    renderModuleList() {
+    async renderModuleList() {
         const container = document.getElementById('modulesList');
-        const modules = moduleStorage.getAll().sort((a, b) => a.order - b.order);
+        const modules = await moduleStorage.getAll();
+        modules.sort((a, b) => a.order - b.order);
         console.log('[renderModuleList] 模块列表:', modules);
         
         container.innerHTML = modules.map(m => `
@@ -234,30 +250,32 @@ class Modal {
         container.querySelectorAll('.module-item').forEach(item => {
             const moduleId = item.dataset.moduleId;
             
-            item.querySelector('[data-action="edit"]').addEventListener('click', () => {
+            item.querySelector('[data-action="edit"]').addEventListener('click', async () => {
                 const nameSpan = item.querySelector('.module-item-name');
                 const newName = prompt('请输入新模块名称:', nameSpan.textContent);
                 if (newName && newName.trim()) {
-                    moduleStorage.update(moduleId, { name: newName.trim() });
-                    this.renderModuleList();
+                    await moduleStorage.update(moduleId, { name: newName.trim() });
+                    await this.renderModuleList();
                     this.refreshKanban();
                 }
             });
 
-            item.querySelector('[data-action="delete"]').addEventListener('click', () => {
-                const module = moduleStorage.getById(moduleId);
+            item.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+                const module = await moduleStorage.getById(moduleId);
                 if (confirm(`确定要删除模块"${module.name}"吗？该模块下的所有任务也会被删除。`)) {
-                    const tasks = storage.getByModule(moduleId);
-                    tasks.forEach(task => storage.delete(task.id));
-                    moduleStorage.delete(moduleId);
-                    this.renderModuleList();
+                    const tasks = await storage.getByModule(moduleId);
+                    for (const task of tasks) {
+                        await storage.delete(task.id);
+                    }
+                    await moduleStorage.delete(moduleId);
+                    await this.renderModuleList();
                     this.refreshKanban();
                 }
             });
         });
     }
 
-    addNewModule() {
+    async addNewModule() {
         try {
             console.log('[addNewModule] === 开始添加模块 ===');
             
@@ -284,9 +302,10 @@ class Modal {
             console.log('[addNewModule] 创建的模块对象:', moduleJson);
             
             console.log('[addNewModule] 准备调用moduleStorage.add');
-            const result = moduleStorage.add(moduleJson);
+            const result = await moduleStorage.add(moduleJson);
             console.log('[addNewModule] moduleStorage.add返回值:', result);
-            console.log('[addNewModule] 保存后的模块列表:', moduleStorage.getAll());
+            const modules = await moduleStorage.getAll();
+            console.log('[addNewModule] 保存后的模块列表:', modules);
             
             if (!result) {
                 alert('保存失败，请重试');
@@ -295,7 +314,7 @@ class Modal {
             
             input.value = '';
             console.log('[addNewModule] 准备刷新模块列表');
-            this.renderModuleList();
+            await this.renderModuleList();
             console.log('[addNewModule] 准备刷新看板');
             this.refreshKanban();
             
@@ -310,5 +329,55 @@ class Modal {
     refreshKanban() {
         const event = new CustomEvent('refreshKanban');
         document.dispatchEvent(event);
+    }
+
+    // Config Modal Methods
+    openConfigModal() {
+        const storageTypeSelect = document.getElementById('storageType');
+        const apiKeyInput = document.getElementById('jsonBinApiKey');
+        const binIdInput = document.getElementById('jsonBinBinId');
+        
+        storageTypeSelect.value = config.storageType;
+        apiKeyInput.value = config.jsonBinConfig.apiKey;
+        binIdInput.value = config.jsonBinConfig.binId;
+        
+        this.toggleCloudSettings(config.storageType);
+        this.showConfigModal();
+    }
+
+    showConfigModal() {
+        this.configOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeConfigModal() {
+        this.configOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    isConfigModalOpen() {
+        return this.configOverlay.classList.contains('active');
+    }
+
+    toggleCloudSettings(storageType) {
+        const cloudSettings = document.getElementById('cloudSettings');
+        cloudSettings.style.display = storageType === 'cloud' ? 'block' : 'none';
+    }
+
+    saveConfig() {
+        const storageType = document.getElementById('storageType').value;
+        const apiKey = document.getElementById('jsonBinApiKey').value.trim();
+        const binId = document.getElementById('jsonBinBinId').value.trim();
+        
+        if (storageType === 'cloud' && (!apiKey || !binId)) {
+            alert('使用云端存储需要填写 API Key 和 Bin ID');
+            return;
+        }
+        
+        config.storageType = storageType;
+        config.setJsonBinConfig(apiKey, binId);
+        
+        alert('配置已保存，刷新页面后生效');
+        this.closeConfigModal();
     }
 }
